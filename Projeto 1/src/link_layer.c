@@ -7,10 +7,12 @@
 // MISC
 #define _POSIX_SOURCE 1
 #define FLAG 0x7E
+#define ESC 0x7F
 #define A_TX 0x03
 #define A_RX 0x01
 #define C_SET 0x03
 #define C_UA 0x07
+#define C_N(x) ((x >> 4) & 0x0F)
 
 typedef enum {
     START,
@@ -25,6 +27,8 @@ int alarmTriggered = FALSE;
 int alarmCount = 0;
 int timeout = 0;
 int retransmitions = 0;
+unsigned char tramaTx = 0;
+unsigned char tramaRx = 1;
 
 void alarmHandler(int signal)
 {
@@ -139,7 +143,30 @@ int llopen(LinkLayer connectionParameters)
 ////////////////////////////////////////////////
 int llwrite(const unsigned char *buf, int bufSize)
 {
-    
+    int frameSize = bufSize;
+    unsigned char *frame = (unsigned char *) malloc(frameSize);
+    frame[0] = FLAG;
+    frame[1] = A_TX;
+    frame[2] = C_N(tramaTx);
+    frame[3] = frame[1] ^ frame[2];
+
+    memcpy(frame + 4, buf, bufSize);
+    unsigned char BCC_2 = buf[0];
+
+    for (int i = 1; i < bufSize; i++) BCC_2 ^ buf[i];
+     
+    int j = 4;
+    for (int i = 0; i <  bufSize; i++) {
+        if(buf[i] == FLAG || buf[i] == ESC) {
+            frame = realloc(frame, ++frameSize);
+            frame[j++] = ESC;
+        }
+        frame[j++] = buf[i];
+    }
+
+    frame[j++] = BCC_2;
+    frame[j++] = FLAG;
+
 
     return 0;
 }
@@ -149,6 +176,30 @@ int llwrite(const unsigned char *buf, int bufSize)
 ////////////////////////////////////////////////
 int llread(unsigned char *packet)
 {
+    unsigned char byte;
+    int infoField;
+    int i = 0;
+    State state = START;
+    while (state != STOP) {  
+        if (readByteSerialPort (&byte) {
+            switch (state) {
+                case START:
+                    if (byte = FLAG) state = FLAG_RCV;
+                    break;
+                case FLAG_RCV:
+                    if (byte = A_TX) state = A_RCV;
+                    break;
+                case A_RCV:
+                    if (byte = C_N(tramaTx)) state = C_RCV;
+                    break;
+                case C_RCV:
+                    if (C_N(tramaTx) ^ A_TX) state = BCC_OK;
+                    infoField = readByteSerialPort (&byte);
+                    break;
+                case C_RCV:
+                    if (byte = STOP) state = BCC_OK;
+                    break;
+
     // TODO: Implement this function
 
     return 0;
