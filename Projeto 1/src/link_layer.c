@@ -1,6 +1,39 @@
 #include "link_layer.h"
 #include <stdlib.h>
 #include <string.h>
+#include "serial_port.h"
+#include <unistd.h>
+#include <stdio.h>
+#include <signal.h>
+
+#define C_RR(Nr) (0xAA | Nr)
+#define C_REJ(Nr) (0x54 | Nr)
+#define C_N(Ns) (Ns << 7)
+
+// Size of maximum acceptable payload.
+// Maximum number of bytes that application layer should send to link layer.
+#define MAX_PAYLOAD_SIZE 1000
+
+#define _POSIX_SOURCE 1
+#define ESC 0x7D
+#define FLAG 0x7E
+#define A_RX 0x01
+#define A_TX 0x03
+#define C_SET 0x03
+#define C_UA 0x07
+#define C_DISC 0x0B
+
+#define FALSE 0
+#define TRUE 1
+
+typedef enum {
+    START,
+    FLAG_RCV,
+    A_RCV,
+    C_RCV,
+    BCC_OK,
+    STOP
+} State;
 
 int alarmTriggered = FALSE;
 int alarmCount = 0;
@@ -86,6 +119,7 @@ int llopen(LinkLayer connectionParameters)
     unsigned char byte;
     timeout = connectionParameters.timeout;
     retransmitions = connectionParameters.nRetransmissions;
+    int attempt = 1;
     
     switch(connectionParameters.role) {
         case(LlTx): {
@@ -138,6 +172,12 @@ int llopen(LinkLayer connectionParameters)
                         }
                     }
                 } 
+
+                if (alarmTriggered && state != STOP) {
+                    printf("[LINK-TX] Retransmission attempt number %d...\n", attempt);
+                    attempt++;
+                }
+
                 connectionParameters.nRetransmissions--;
             }
             if (state != STOP) return -1;
@@ -253,7 +293,10 @@ int llwrite(const unsigned char *buf, int bufSize)
             }
         }
         if (accepted) break;
-        currenttransmission++;
+        if (alarmTriggered) {
+            currenttransmission++;
+            printf("[LINK-LLWRITE] Retransmission number %d...\n", currenttransmission);
+        }
     }
 
     free(frame);
@@ -274,7 +317,7 @@ int llread(unsigned char *packet)
     unsigned char C = 0;
     State state = START;
 
-    unsigned char frame[MAX_PAYLOAD_SIZE*2]; // Worst-case scenario: all bytes need to be stuffed
+    unsigned char frame[MAX_PAYLOAD_SIZE*2+2]; // Worst-case scenario: all bytes need to be stuffed  + BCC
     unsigned char destuffed[MAX_PAYLOAD_SIZE]; 
 
     while (state != STOP) {
@@ -330,7 +373,7 @@ int llread(unsigned char *packet)
                                 state = START;
                             }
                         } else {
-                            printf("[LINK-LLREAD] BCC2 error, requesting retransmission\n");
+                            printf("[LINK-LLREAD] Requesting retransmission (REJ).\n");
                             sendSupervFrame(A_RX, C_REJ(tramaRx));
                             state = START;
                         }

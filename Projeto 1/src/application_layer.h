@@ -4,13 +4,6 @@
 #ifndef _APPLICATION_LAYER_H_
 #define _APPLICATION_LAYER_H_
 
-#define CTRL_START 1
-#define CTRL_DATA  2
-#define CTRL_END   3
-#define MAX_CTRL_SIZE 1024
-#define TYPE_FILESIZE 0
-#define TYPE_FILENAME 1
-
 // Application layer main function.
 // Arguments:
 //   serialPort: Serial port name (e.g., /dev/ttyS0).
