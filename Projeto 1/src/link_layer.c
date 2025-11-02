@@ -306,8 +306,7 @@ int llwrite(const unsigned char *buf, int bufSize)
     free(frame);
     if (accepted) return frameSize;
     else {
-        printf("[LINK-LLWRITE] Failed to transmit frame after %d attempts. Closing connection...\n", retransmitions);
-        llclose();
+        printf("[LINK-LLWRITE] Failed to transmit frame after %d attempts.\n", retransmitions);
         return -1;
     } 
 }

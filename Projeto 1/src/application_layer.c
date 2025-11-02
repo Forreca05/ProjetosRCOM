@@ -126,8 +126,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char *startPacket = createControlPacket(filesize, filename, CTRL_START, &cPacketSize);
 
         if(llwrite(startPacket, cPacketSize) == -1){ 
-            printf("[APP-TX] Error in start packet\n");
-            exit(-1);
+            printf("[APP-TX] Exit: Error in start packet\n");
+            return;
         }   
 
         unsigned char* data = getData(file, filesize); //Get data from file
@@ -142,8 +142,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             unsigned char *dataPacket = createDataPacket(dataChunk, payloadSize, &dPacketSize);
             
             if(llwrite(dataPacket, dPacketSize) == -1) {
-                printf("[APP-TX] Error writing data packets\n");
-                exit(-1);
+                printf("[APP-TX] Exit: Error writing data packets\n");
+                return;
             }
             remainingBytes -= payloadSize; 
             data += payloadSize; 
@@ -152,8 +152,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char *endPacket = createControlPacket(filesize, filename, CTRL_END, &cPacketSize);
 
         if(llwrite(endPacket, cPacketSize) == -1){ 
-            printf("[APP-TX] Error in end packet\n");
-            exit(-1);
+            printf("[APP-TX] Exit: Error in end packet\n");
+            return;
         }   
     }
 
