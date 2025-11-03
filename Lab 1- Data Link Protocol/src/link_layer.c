@@ -139,6 +139,7 @@ int llopen(LinkLayer connectionParameters)
                     }
                 } 
                 connectionParameters.nRetransmissions--;
+                printf("OLA\n");
             }
             if (state != STOP) return -1;
             break;  
@@ -254,6 +255,7 @@ int llwrite(const unsigned char *buf, int bufSize)
         }
         if (accepted) break;
         currenttransmission++;
+        printf("tentativa %d", currenttransmission);
     }
 
     free(frame);
