@@ -4,6 +4,17 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define CTRL_START 1
+#define CTRL_DATA  2
+#define CTRL_END   3
+#define MAX_CTRL_SIZE 1024
+#define TYPE_FILESIZE 0
+#define TYPE_FILENAME 1
+
+// Size of maximum acceptable payload.
+// Maximum number of bytes that application layer should send to link layer.
+#define MAX_PAYLOAD_SIZE 1000
+
 unsigned char *createControlPacket (long int fileSize, const char *fileName, int controlfield, int* cPacketSize) {
     int nameLength = strlen(fileName);
 
@@ -62,7 +73,7 @@ unsigned char* unpackControlPacket(unsigned char* controlPacket, int size, int* 
     }
 
     unsigned char fileNameLength = controlPacket[3+fileSizeLength+1]; 
-    unsigned char *fileName = (unsigned char*)malloc(fileNameLength);
+    unsigned char *fileName = (unsigned char*)malloc(fileNameLength+1);
     fileName[fileNameLength] = '\0';
     memcpy(fileName, controlPacket+3+fileSizeLength+2, fileNameLength);
 
@@ -115,8 +126,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char *startPacket = createControlPacket(filesize, filename, CTRL_START, &cPacketSize);
 
         if(llwrite(startPacket, cPacketSize) == -1){ 
-            printf("[APP-TX] Error in start packet\n");
-            exit(-1);
+            printf("[APP-TX] Exit: Error in start packet\n");
+            return;
         }   
 
         unsigned char* data = getData(file, filesize); //Get data from file
@@ -131,8 +142,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
             unsigned char *dataPacket = createDataPacket(dataChunk, payloadSize, &dPacketSize);
             
             if(llwrite(dataPacket, dPacketSize) == -1) {
-                printf("[APP-TX] Error writing data packets\n");
-                exit(-1);
+                printf("[APP-TX] Exit: Error writing data packets\n");
+                return;
             }
             remainingBytes -= payloadSize; 
             data += payloadSize; 
@@ -141,8 +152,8 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         unsigned char *endPacket = createControlPacket(filesize, filename, CTRL_END, &cPacketSize);
 
         if(llwrite(endPacket, cPacketSize) == -1){ 
-            printf("[APP-TX] Error in end packet\n");
-            exit(-1);
+            printf("[APP-TX] Exit: Error in end packet\n");
+            return;
         }   
     }
 
@@ -155,14 +166,14 @@ void applicationLayer(const char *serialPort, const char *role, int baudRate,
         printf("[APP-RX] Start Packet Received. Extracting %d bytes from %s.\n", fileSize, fileName);
 
         FILE *newFile = fopen("penguin-received.gif", "w");
-        unsigned char *packet = (unsigned char *)malloc(MAX_PAYLOAD_SIZE);
+        unsigned char *packet = (unsigned char *)malloc(3+MAX_PAYLOAD_SIZE);
         while (1) {
             while ((packetSize = llread(packet)) < 0);
 
             unsigned char C = packet[0];
 
             if (C == CTRL_END) {
-                printf("[APP-RX] End Packet Received\n");
+                printf("[APP-RX] End Packet Received.\n");
                 break;
             }
 
